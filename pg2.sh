@@ -80,17 +80,16 @@ VALUES
 -- Представления (view1-view5) в схеме myviews
 -- 1. Проверка существования человека по ФИО
 CREATE MATERIALIZED VIEW myviews.view1 AS
-SELECT * FROM (
-    SELECT first_name, middle_name, last_name FROM mytabs.tab1
-    UNION
-    SELECT first_name, middle_name, last_name FROM mytabs.tab2
-    UNION
-    SELECT first_name, middle_name, last_name FROM mytabs.tab3
-) AS people;
+SELECT first_name, middle_name, last_name FROM mytabs.tab1
+UNION
+SELECT first_name, middle_name, last_name FROM mytabs.tab2
+UNION
+SELECT first_name, middle_name, last_name FROM mytabs.tab3;
 
 -- 2. Все работающие дети
 CREATE MATERIALIZED VIEW myviews.view2 AS
-SELECT * FROM mytabs.tab3 WHERE monthly_income > 0;
+SELECT first_name, middle_name, last_name, birth_year, gender, monthly_income, twin, father_id, mother_id
+FROM mytabs.tab3 WHERE monthly_income > 0;
 
 -- 3. Мужья с доходом выше жены
 CREATE MATERIALIZED VIEW myviews.view3 AS
@@ -101,13 +100,14 @@ WHERE m.monthly_income > w.monthly_income;
 
 -- 4. Люди без дохода, родившиеся до заданного года (например, 1990)
 CREATE MATERIALIZED VIEW myviews.view4 AS
-SELECT * FROM (
-    SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab1
-    UNION ALL
-    SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab2
-    UNION ALL
-    SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab3
-) AS people
+SELECT first_name, last_name, birth_year, monthly_income
+FROM mytabs.tab1
+UNION ALL
+SELECT first_name, last_name, birth_year, monthly_income
+FROM mytabs.tab2
+UNION ALL
+SELECT first_name, last_name, birth_year, monthly_income
+FROM mytabs.tab3
 WHERE monthly_income = 0 AND birth_year < 1990;
 
 -- 5. Число семей с близнецами
@@ -116,10 +116,10 @@ SELECT COUNT(DISTINCT father_id) AS families_with_twins
 FROM mytabs.tab3
 WHERE twin = TRUE;
 
--- Резервное копирование базы данных
-/usr/local/pgsql/bin/pg_dump -U myuser -h localhost -d mydb -F p -f /home/dbuser/backup.sql
-
 EOF
+
+# Резервное копирование базы данных
+/usr/local/pgsql/bin/pg_dump -U myuser -h localhost -d mydb -F p -f /home/dbuser/backup.sql
 
 # Завершение работы сервера PostgreSQL
 /usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile stop
