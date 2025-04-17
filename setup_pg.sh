@@ -1,12 +1,18 @@
 #!/bin/sh
 
-# --- Авто-конвертация CRLF в LF ---
+# --- Авто-конвертация CRLF в LF, если скрипт был написан в Windows ---
 if file "$0" | grep -q CRLF; then
     echo "Обнаружен Windows-формат строк (CRLF) — конвертирую в UNIX (LF)..."
     apk add --no-cache dos2unix >/dev/null 2>&1
     dos2unix "$0"
     echo "Готово! Запускаю скрипт повторно..."
-    exec sh "$0"
+    
+    # Используем bash, если он установлен, иначе sh
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0"
+    else
+        exec /bin/sh "$0"
+    fi
 fi
 
 # --- Создание пользователя dbuser ---
@@ -36,8 +42,8 @@ su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l logfile st
 
 # --- Создание БД и пользователя myuser ---
 su - dbuser -c "/usr/local/pgsql/bin/createdb mydb"
-su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"CREATE USER myuser WITH PASSWORD 'password' LOGIN;\\\"\"
-su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;\\\"\"
+su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"CREATE USER myuser WITH PASSWORD 'password' LOGIN;\\\"\""
+su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;\\\"\""
 
 # --- Разрешение подключения с любого IP ---
 echo "listen_addresses = '*'" >> /home/dbuser/pgdata/postgresql.conf
