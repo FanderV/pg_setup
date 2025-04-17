@@ -32,7 +32,18 @@ su - dbuser -c '/usr/local/pgsql/bin/initdb -D /home/dbuser/pgdata'
 # Запуск PostgreSQL
 su - dbuser -c '/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile start'
 
-# Создание нового пользователя myuser и БД mydb
+# Создание пользователя postgres с суперпользовательскими правами и паролем
+su - dbuser -c "/usr/local/pgsql/bin/createuser -s postgres"
+su - dbuser -c "/usr/local/pgsql/bin/psql -c \"ALTER USER postgres WITH PASSWORD 'password';\""
+
+# Настройка подключения по сети для пользователя postgres
+echo "host all all 0.0.0.0/0 md5" >> /home/dbuser/pgdata/pg_hba.conf
+echo "listen_addresses = '*'" >> /home/dbuser/pgdata/postgresql.conf
+
+# Перезапуск сервера для применения настроек
+su - dbuser -c '/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata restart'
+
+# Создание нового пользователя myuser и базы данных mydb
 sleep 5
 su - dbuser -c "/usr/local/pgsql/bin/createuser -P -e -s myuser"
 su - dbuser -c "/usr/local/pgsql/bin/createdb mydb -O myuser"
