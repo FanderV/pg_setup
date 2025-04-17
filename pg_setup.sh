@@ -1,13 +1,22 @@
 #!/bin/sh
 
+# --- Установка зависимостей ---
+apk update
+apk add --no-cache \
+    build-base \
+    readline-dev \
+    zlib-dev \
+    openssl-dev \
+    curl \
+    sudo \
+    tar \
+    bash
+
 # --- Создание пользователя dbuser ---
 adduser -D dbuser
 echo "dbuser:password" | chpasswd
 
-# --- Установка зависимостей и загрузка исходников PostgreSQL 15.3 ---
-apk update
-apk add --no-cache build-base readline-dev zlib-dev openssl-dev curl sudo
-
+# --- Установка и сборка PostgreSQL 15.3 ---
 cd /home/dbuser
 curl -O https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz
 tar -xzf postgresql-15.3.tar.gz
