@@ -1,72 +1,59 @@
 #!/bin/sh
 
-# Установим необходимые утилиты
-apk update
-apk add bash sudo shadow wget curl build-base linux-headers \
-    openssl-dev readline-dev zlib-dev libxml2-dev libxslt-dev \
-    libedit-dev bison flex tar iproute2 coreutils util-linux grep \
-    procps pciutils ethtool bind-tools
+# Обновление системы и установка необходимых пакетов
+apk update && apk upgrade
 
-# Создаём пользователя
+apk add bash coreutils build-base linux-headers \
+    curl wget tar xz \
+    gcc musl-dev make \
+    readline-dev zlib-dev openssl-dev \
+    util-linux pciutils net-tools iproute2
+
+# Создание пользователя dbuser
 adduser -D dbuser
 echo "dbuser:password" | chpasswd
 
-# Создаём каталоги
-mkdir -p /usr/local/src && cd /usr/local/src
-
-# Скачиваем и распаковываем PostgreSQL
+# Загрузка и распаковка PostgreSQL 15.3
+cd /root
 wget https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz
 tar -xzf postgresql-15.3.tar.gz
 cd postgresql-15.3
 
-# Сборка PostgreSQL
+# Сборка и установка
 ./configure --prefix=/usr/local/pgsql
 make
 make install
 
-# Создаём каталог данных
+# Инициализация кластера
 mkdir -p /home/dbuser/pgdata
-chown -R dbuser:dbuser /home/dbuser/pgdata
-chown -R dbuser:dbuser /usr/local/pgsql
+chown -R dbuser /home/dbuser/pgdata
+su - dbuser -c '/usr/local/pgsql/bin/initdb -D /home/dbuser/pgdata'
 
-# Добавляем PostgreSQL в PATH и делаем инициализацию
-echo 'export PATH=$PATH:/usr/local/pgsql/bin' >> /home/dbuser/.profile
-su - dbuser -c "/usr/local/pgsql/bin/initdb -D /home/dbuser/pgdata"
+# Запуск PostgreSQL
+su - dbuser -c '/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile start'
 
-# Запуск PostgreSQL-сервера
-su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile start"
-sleep 3
+# Создание нового пользователя myuser и БД mydb
+sleep 5
+su - dbuser -c "/usr/local/pgsql/bin/createuser -P -e -s myuser"
+su - dbuser -c "/usr/local/pgsql/bin/createdb mydb -O myuser"
 
-# Создание пользователя myuser
-su - dbuser -c "/usr/local/pgsql/bin/createuser -P -e myuser"
-# Пароль: password
+# Запись аппаратной информации
+echo "CPU Info:" > /home/dbuser/hardware.txt
+cat /proc/cpuinfo | grep 'model name' >> /home/dbuser/hardware.txt
+echo "\nRAM Info:" >> /home/dbuser/hardware.txt
+free -h >> /home/dbuser/hardware.txt
+echo "\nDisk Info:" >> /home/dbuser/hardware.txt
+df -h >> /home/dbuser/hardware.txt
 
-# Создание БД
-su - dbuser -c "/usr/local/pgsql/bin/createdb -O myuser mydb"
-
-# Разрешаем подключения по сети
-echo "host all all 0.0.0.0/0 md5" >> /home/dbuser/pgdata/pg_hba.conf
-echo "listen_addresses = '*'" >> /home/dbuser/pgdata/postgresql.conf
-su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata restart"
-
-# Получаем информацию об оборудовании
-CPU=$(lscpu | grep "MHz" | awk '{print $3}')
-RAM=$(free -m | grep Mem | awk '{print $2}')
-DISK=$(df -h | grep '/$' | awk '{print $2}')
-echo "CPU MHz: $CPU\nRAM MB: $RAM\nDisk Size: $DISK" > /home/dbuser/hardware.txt
-
-# Сеть
-INTERFACES=$(ip link | grep ": " | wc -l)
-IP_INFO=$(ip a | grep inet | awk '{print $2}')
-MAC_INFO=$(ip link | grep link/ether | awk '{print $2}')
-GATEWAY=$(ip route | grep default | awk '{print $3}')
-DNS=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')
-
-# Пропускная способность (может не работать в виртуалке — зависит от окружения)
-SPEEDS=""
-for iface in $(ls /sys/class/net/); do
-  SPEED=$(ethtool $iface 2>/dev/null | grep "Speed:" | awk '{print $2}')
-  SPEEDS="$SPEEDS\n$iface: $SPEED"
+# Запись сетевой информации
+echo "Network Interfaces:" > /home/dbuser/network.txt
+ip -o link show | awk -F': ' '{print $2}' >> /home/dbuser/network.txt
+echo "\nBandwidth (ifconfig):" >> /home/dbuser/network.txt
+for iface in $(ip -o link show | awk -F': ' '{print $2}'); do
+    ethtool $iface 2>/dev/null | grep -i speed >> /home/dbuser/network.txt
 done
-
-echo -e "Interfaces: $INTERFACES\nIP: $IP_INFO\nMAC: $MAC_INFO\nGateway: $GATEWAY\nDNS: $DNS\nSpeeds: $SPEEDS" > /home/dbuser/network.txt
+echo "\nIP Configuration:" >> /home/dbuser/network.txt
+ip addr show >> /home/dbuser/network.txt
+echo "\nGateway and DNS:" >> /home/dbuser/network.txt
+ip route show default >> /home/dbuser/network.txt
+cat /etc/resolv.conf >> /home/dbuser/network.txt
