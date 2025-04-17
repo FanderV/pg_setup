@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# --- Авто-конвертация CRLF в LF, если скрипт был написан в Windows ---
+# --- Авто-конвертация CRLF в LF ---
 if file "$0" | grep -q CRLF; then
     echo "Обнаружен Windows-формат строк (CRLF) — конвертирую в UNIX (LF)..."
     apk add --no-cache dos2unix >/dev/null 2>&1
