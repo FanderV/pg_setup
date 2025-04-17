@@ -46,9 +46,8 @@ CREATE TABLE mytabs.tab3 (
     mother_id INT REFERENCES mytabs.tab2(id)
 );
 
--- Наполнение таблиц тестовыми данными (по 7 строк минимум)
-INSERT INTO mytabs.tab1 (first_name, middle_name, last_name, birth_year, monthly_income)
-VALUES
+-- Наполнение таблиц
+INSERT INTO mytabs.tab1 (first_name, middle_name, last_name, birth_year, monthly_income) VALUES
 ('Иван', 'Петрович', 'Сидоров', 1980, 50000),
 ('Алексей', 'Игоревич', 'Миронов', 1978, 40000),
 ('Сергей', 'Викторович', 'Кузнецов', 1985, 30000),
@@ -57,8 +56,7 @@ VALUES
 ('Петр', 'Егорович', 'Смирнов', 1988, 70000),
 ('Анатолий', 'Олегович', 'Лебедев', 1975, 32000);
 
-INSERT INTO mytabs.tab2 (first_name, middle_name, last_name, birth_year, monthly_income)
-VALUES
+INSERT INTO mytabs.tab2 (first_name, middle_name, last_name, birth_year, monthly_income) VALUES
 ('Мария', 'Ивановна', 'Сидорова', 1982, 30000),
 ('Елена', 'Павловна', 'Миронова', 1980, 45000),
 ('Анна', 'Сергеевна', 'Кузнецова', 1987, 25000),
@@ -67,8 +65,7 @@ VALUES
 ('Ирина', 'Петровна', 'Смирнова', 1990, 65000),
 ('Светлана', 'Анатольевна', 'Лебедева', 1976, 31000);
 
-INSERT INTO mytabs.tab3 (first_name, middle_name, last_name, birth_year, gender, monthly_income, twin, father_id, mother_id)
-VALUES
+INSERT INTO mytabs.tab3 (first_name, middle_name, last_name, birth_year, gender, monthly_income, twin, father_id, mother_id) VALUES
 ('Виктор', 'Иванович', 'Сидоров', 2005, 'M', 5000, FALSE, 1, 1),
 ('Анна', 'Ивановна', 'Сидорова', 2005, 'F', 0, TRUE, 1, 1),
 ('Павел', 'Алексеевич', 'Миронов', 2007, 'M', 3000, FALSE, 2, 2),
@@ -77,7 +74,6 @@ VALUES
 ('Ирина', 'Николаевна', 'Павлова', 2011, 'F', 2000, FALSE, 5, 5),
 ('Максим', 'Петрович', 'Смирнов', 2008, 'M', 1500, TRUE, 6, 6);
 
--- Представления (view1-view5) в схеме myviews
 -- 1. Проверка существования человека по ФИО
 CREATE MATERIALIZED VIEW myviews.view1 AS
 SELECT first_name, middle_name, last_name FROM mytabs.tab1
@@ -88,27 +84,40 @@ SELECT first_name, middle_name, last_name FROM mytabs.tab3;
 
 -- 2. Все работающие дети
 CREATE MATERIALIZED VIEW myviews.view2 AS
-SELECT * FROM mytabs.tab3 WHERE monthly_income > 0;
+SELECT
+    id,
+    first_name,
+    middle_name,
+    last_name,
+    birth_year,
+    gender,
+    monthly_income,
+    twin,
+    father_id,
+    mother_id
+FROM mytabs.tab3
+WHERE monthly_income > 0;
 
 -- 3. Мужья с доходом выше жены
 CREATE MATERIALIZED VIEW myviews.view3 AS
-SELECT m.first_name AS husband_name, w.first_name AS wife_name, m.monthly_income, w.monthly_income
+SELECT
+    m.first_name AS husband_name,
+    w.first_name AS wife_name,
+    m.monthly_income AS husband_income,
+    w.monthly_income AS wife_income
 FROM mytabs.tab1 m
 JOIN mytabs.tab2 w ON m.id = w.id
 WHERE m.monthly_income > w.monthly_income;
 
--- 4. Люди без дохода, родившиеся до заданного года (например, 1990)
+-- 4. Люди без дохода, родившиеся до 1990 года
 CREATE MATERIALIZED VIEW myviews.view4 AS
-SELECT first_name, last_name, birth_year, monthly_income
-FROM mytabs.tab1
+SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab1
 WHERE monthly_income = 0 AND birth_year < 1990
 UNION ALL
-SELECT first_name, last_name, birth_year, monthly_income
-FROM mytabs.tab2
+SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab2
 WHERE monthly_income = 0 AND birth_year < 1990
 UNION ALL
-SELECT first_name, last_name, birth_year, monthly_income
-FROM mytabs.tab3
+SELECT first_name, last_name, birth_year, monthly_income FROM mytabs.tab3
 WHERE monthly_income = 0 AND birth_year < 1990;
 
 -- 5. Число семей с близнецами
@@ -116,6 +125,7 @@ CREATE MATERIALIZED VIEW myviews.view5 AS
 SELECT COUNT(DISTINCT father_id) AS families_with_twins
 FROM mytabs.tab3
 WHERE twin = TRUE;
+
 
 
 EOF
