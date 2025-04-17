@@ -46,7 +46,7 @@ CREATE TABLE mytabs.tab3 (
     mother_id INT REFERENCES mytabs.tab2(id)
 );
 
--- Наполнение таблиц тестовыми данными
+-- Наполнение таблиц тестовыми данными (по 7 строк минимум)
 INSERT INTO mytabs.tab1 (first_name, middle_name, last_name, birth_year, monthly_income)
 VALUES
 ('Иван', 'Петрович', 'Сидоров', 1980, 50000),
@@ -88,8 +88,7 @@ SELECT first_name, middle_name, last_name FROM mytabs.tab3;
 
 -- 2. Все работающие дети
 CREATE MATERIALIZED VIEW myviews.view2 AS
-SELECT first_name, middle_name, last_name, birth_year, gender, monthly_income, twin, father_id, mother_id
-FROM mytabs.tab3 WHERE monthly_income > 0;
+SELECT * FROM mytabs.tab3 WHERE monthly_income > 0;
 
 -- 3. Мужья с доходом выше жены
 CREATE MATERIALIZED VIEW myviews.view3 AS
@@ -102,9 +101,11 @@ WHERE m.monthly_income > w.monthly_income;
 CREATE MATERIALIZED VIEW myviews.view4 AS
 SELECT first_name, last_name, birth_year, monthly_income
 FROM mytabs.tab1
+WHERE monthly_income = 0 AND birth_year < 1990
 UNION ALL
 SELECT first_name, last_name, birth_year, monthly_income
 FROM mytabs.tab2
+WHERE monthly_income = 0 AND birth_year < 1990
 UNION ALL
 SELECT first_name, last_name, birth_year, monthly_income
 FROM mytabs.tab3
@@ -115,6 +116,7 @@ CREATE MATERIALIZED VIEW myviews.view5 AS
 SELECT COUNT(DISTINCT father_id) AS families_with_twins
 FROM mytabs.tab3
 WHERE twin = TRUE;
+
 
 EOF
 
