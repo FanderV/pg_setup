@@ -1,77 +1,68 @@
 #!/bin/sh
 
-set -e
+# --- Авто-конвертация CRLF в LF ---
+if file "$0" | grep -q CRLF; then
+    echo "Обнаружен Windows-формат строк (CRLF) — конвертирую в UNIX (LF)..."
+    apk add --no-cache dos2unix >/dev/null 2>&1
+    dos2unix "$0"
+    echo "Готово! Запускаю скрипт повторно..."
+    exec sh "$0"
+fi
 
-# === 1. Создание пользователя dbuser ===
+# --- Создание пользователя dbuser ---
 adduser -D dbuser
 echo "dbuser:password" | chpasswd
 
-# === 2. Отчеты о системе ===
-mkdir -p /home/dbuser
+# --- Установка зависимостей и загрузка исходников PostgreSQL 15.3 ---
+apk update
+apk add --no-cache build-base readline-dev zlib-dev openssl-dev curl sudo
 
-# Hardware
-{
-  echo "--- CPU INFO ---"
-  lscpu
-  echo "--- MEMORY ---"
-  free -h
-  echo "--- DISK ---"
-  df -h
-} > /home/dbuser/hardware.txt
-
-# Network
-{
-  echo "--- INTERFACES ---"
-  ip addr show
-  echo "--- LINK INFO ---"
-  ip link show
-  echo "--- ROUTES ---"
-  ip route show
-  echo "--- DNS ---"
-  cat /etc/resolv.conf
-} > /home/dbuser/network.txt
-
-chown dbuser:dbuser /home/dbuser/*.txt
-
-# === 3. Установка зависимостей ===
-apk add build-base readline-dev zlib-dev libxml2-dev libxslt-dev openssl-dev wget sudo
-
-# === 4. Скачивание и установка PostgreSQL 15.3 ===
-cd /usr/local/src
-wget https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz
+cd /home/dbuser
+curl -O https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz
 tar -xzf postgresql-15.3.tar.gz
 cd postgresql-15.3
+
 ./configure --prefix=/usr/local/pgsql
 make
-make install  # <- только это выполняется от root
+make install  # Выполняется от root, как по заданию
 
-# === 5. Настройка среды для dbuser ===
-su - dbuser <<'EOF'
-
-# Инициализация кластера
+# --- Создание кластера и запуск PostgreSQL ---
 mkdir -p /home/dbuser/pgdata
-/usr/local/pgsql/bin/initdb -D /home/dbuser/pgdata
+chown dbuser:dbuser /home/dbuser/pgdata
+adduser dbuser wheel  # для sudo, если понадобится
 
-# Настройка конфигов
+su - dbuser -c "/usr/local/pgsql/bin/initdb -D /home/dbuser/pgdata"
+su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l logfile start"
+
+# --- Создание БД и пользователя myuser ---
+su - dbuser -c "/usr/local/pgsql/bin/createdb mydb"
+su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"CREATE USER myuser WITH PASSWORD 'password' LOGIN;\\\"\"
+su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;\\\"\"
+
+# --- Разрешение подключения с любого IP ---
+echo "listen_addresses = '*'" >> /home/dbuser/pgdata/postgresql.conf
 echo "host all all 0.0.0.0/0 md5" >> /home/dbuser/pgdata/pg_hba.conf
-sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /home/dbuser/pgdata/postgresql.conf
+su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata restart"
 
-# Запуск PostgreSQL
-/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile start
+# --- Аппаратные характеристики ---
+echo "CPU Info:" > /home/dbuser/hardware.txt
+lscpu | grep 'Model name\|CPU MHz' >> /home/dbuser/hardware.txt
+echo "\nMemory Info:" >> /home/dbuser/hardware.txt
+free -h >> /home/dbuser/hardware.txt
+echo "\nDisk Info:" >> /home/dbuser/hardware.txt
+df -h | grep '/$' >> /home/dbuser/hardware.txt
 
-# Создание суперпользователя postgres (если нужно)
-createuser -s postgres
+# --- Сетевые характеристики ---
+echo "Network Interfaces:" > /home/dbuser/network.txt
+ip link show | grep -E '^[0-9]+:' | awk -F': ' '{print $2}' >> /home/dbuser/network.txt
+echo "\nIP Addresses:" >> /home/dbuser/network.txt
+ip -o -f inet addr show | awk '{print $2, $4}' >> /home/dbuser/network.txt
+echo "\nMAC Addresses:" >> /home/dbuser/network.txt
+ip link | awk '/ether/ {print $2}' >> /home/dbuser/network.txt
+echo "\nDefault Gateway:" >> /home/dbuser/network.txt
+ip route | grep default >> /home/dbuser/network.txt
+echo "\nDNS Servers:" >> /home/dbuser/network.txt
+cat /etc/resolv.conf | grep nameserver >> /home/dbuser/network.txt
 
-# Ожидание сервера
-sleep 2
-
-# Создание пользователя и БД
-psql -U postgres <<SQL
-CREATE USER myuser WITH PASSWORD 'password' LOGIN;
-CREATE DATABASE mydb OWNER myuser;
-GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;
-SQL
-
-EOF
-
-echo "✅ Установка завершена. PostgreSQL работает от пользователя dbuser."
+# --- Готово ---
+echo "Всё готово! PostgreSQL 15.3 установлен и запущен, отчёты сохранены."
