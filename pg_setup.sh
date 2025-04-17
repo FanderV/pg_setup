@@ -1,19 +1,28 @@
 #!/bin/sh
 
-# --- Установка зависимостей ---
-apk update
-apk add --no-cache \
-    build-base \
-    readline-dev \
-    zlib-dev \
-    openssl-dev \
-    curl \
-    sudo \
-    tar \
-    bash \
-    util-linux \
-    procps \
-    iproute2
+# --- Проверка и настройка репозиториев ---
+echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/main" > /etc/apk/repositories
+echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories
+
+# --- Установка зависимостей с повторными попытками ---
+for i in 1 2 3; do
+    apk update && \
+    apk add --no-cache \
+        build-base \
+        readline-dev \
+        zlib-dev \
+        openssl-dev \
+        curl \
+        sudo \
+        tar \
+        bash \
+        util-linux \
+        procps \
+        iproute2 && break
+    
+    echo "Попытка $i не удалась, повторяем через 5 секунд..."
+    sleep 5
+done || { echo "Не удалось установить зависимости"; exit 1; }
 
 # --- Создание пользователя dbuser ---
 if ! id -u dbuser >/dev/null 2>&1; then
@@ -23,12 +32,9 @@ fi
 
 # --- Установка PostgreSQL 15.3 из исходников ---
 cd /home/dbuser
-if [ ! -f postgresql-15.3.tar.gz ]; then
-    curl -O https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz || { echo "Failed to download PostgreSQL"; exit 1; }
-fi
-
-if [ ! -d postgresql-15.3 ]; then
-    tar -xzf postgresql-15.3.tar.gz || { echo "Failed to extract PostgreSQL"; exit 1; }
+if ! curl -O https://ftp.postgresql.org/pub/source/v15.3/postgresql-15.3.tar.gz; then
+    echo "Пробуем альтернативный URL для загрузки PostgreSQL..."
+    curl -O https://mirror.racket-lang.org/postgresql/postgresql-15.3.tar.gz || { echo "Failed to download PostgreSQL"; exit 1; }
 fi
 
 cd postgresql-15.3 || { echo "PostgreSQL directory not found"; exit 1; }
