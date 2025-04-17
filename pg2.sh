@@ -120,6 +120,3 @@ EOF
 
 # Резервное копирование базы данных
 /usr/local/pgsql/bin/pg_dump -U myuser -h localhost -d mydb -F p -f /home/dbuser/backup.sql
-
-# Завершение работы сервера PostgreSQL
-/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile stop
