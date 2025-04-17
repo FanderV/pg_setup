@@ -42,8 +42,8 @@ su - dbuser -c "/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l logfile st
 
 # --- Создание БД и пользователя myuser ---
 su - dbuser -c "/usr/local/pgsql/bin/createdb mydb"
-su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"CREATE USER myuser WITH PASSWORD 'password' LOGIN;\\\"\""
-su - dbuser -c \"/usr/local/pgsql/bin/psql -c \\\"GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;\\\"\""
+su - dbuser -c "/usr/local/pgsql/bin/psql -c \"CREATE USER myuser WITH PASSWORD 'password' LOGIN;\""
+su - dbuser -c "/usr/local/pgsql/bin/psql -c \"GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;\""
 
 # --- Разрешение подключения с любого IP ---
 echo "listen_addresses = '*'" >> /home/dbuser/pgdata/postgresql.conf
