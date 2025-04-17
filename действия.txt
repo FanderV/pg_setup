@@ -1,0 +1,29 @@
+1. apk add bash git
+2. git clone https://github.com/FanderV/pg_setup
+3. bash pg.sh
+password
+password
+
+reboot
+
+dbuser
+password
+
+запуск сервера
+/usr/local/pgsql/bin/pg_ctl -D /home/dbuser/pgdata -l /home/dbuser/logfile start
+
+подключиться 
+/usr/local/pgsql/bin/psql -U myuser -d mydb -h localhost
+
+--
+создание таблиц и тд
+--
+
+резервная копия:
+/usr/local/pgsql/bin/pg_dump -U myuser -h localhost -d mydb -F p -f /home/dbuser/backup.sql
+
+или можно запустить скрипт pg2.sh
+
+не забыть сделать файл .sql:
+
+/usr/local/pgsql/bin/psql -U myuser -d mydb -h localhost -f /home/dbuser/script.sql
