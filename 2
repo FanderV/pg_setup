@@ -1,0 +1,74 @@
+Table tab1 as "Мужья" {
+  id SERIAL [pk]
+  first_name VARCHAR(50)
+  middle_name VARCHAR(50)
+  last_name VARCHAR(50)
+  birth_year INT
+  gender CHAR(1) [default: 'M']
+  monthly_income NUMERIC(10,2)
+}
+
+Table tab2 as "Жены" {
+  id SERIAL [pk]
+  first_name VARCHAR(50)
+  middle_name VARCHAR(50)
+  last_name VARCHAR(50)
+  birth_year INT
+  gender CHAR(1) [default: 'F']
+  monthly_income NUMERIC(10,2)
+}
+
+Table tab3 as "Дети" {
+  id SERIAL [pk]
+  first_name VARCHAR(50)
+  middle_name VARCHAR(50)
+  last_name VARCHAR(50)
+  birth_year INT
+  gender CHAR(1)
+  monthly_income NUMERIC(10,2)
+  twin BOOLEAN [default: false]
+  father_id INT [ref: > tab1.id]
+  mother_id INT [ref: > tab2.id]
+}
+
+Table view1 as "Проверка по ФИО" {
+  first_name VARCHAR(50)
+  middle_name VARCHAR(50)
+  last_name VARCHAR(50)
+  -- FROM tab1, tab2, tab3 (UNION)
+}
+
+Table view2 as "Все работающие дети" {
+  id INT
+  first_name VARCHAR(50)
+  middle_name VARCHAR(50)
+  last_name VARCHAR(50)
+  birth_year INT
+  gender CHAR(1)
+  monthly_income NUMERIC(10,2)
+  twin BOOLEAN
+  father_id INT
+  mother_id INT
+  -- FROM tab3 WHERE monthly_income > 0
+}
+
+Table view3 as "Мужья с доходом выше жены" {
+  husband_name VARCHAR(50)
+  wife_name VARCHAR(50)
+  husband_income NUMERIC(10,2)
+  wife_income NUMERIC(10,2)
+  -- FROM tab1 JOIN tab2 ON tab1.id = tab2.id WHERE tab1.income > tab2.income
+}
+
+Table view4 as "Люди без дохода до 1990 года" {
+  first_name VARCHAR(50)
+  last_name VARCHAR(50)
+  birth_year INT
+  monthly_income NUMERIC(10,2)
+  -- FROM tab1, tab2, tab3 WHERE income = 0 AND birth_year < 1990
+}
+
+Table view5 as "Число семей с близнецами" {
+  families_with_twins INT
+  -- COUNT(DISTINCT father_id) FROM tab3 WHERE twin = TRUE
+}
